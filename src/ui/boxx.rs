@@ -1,7 +1,123 @@
 use std::io::Write;
 use termion::*;
+use termion::event::Key;
 
 use crate::ivec2::IVec2;
+
+use super::EColor;
+
+pub struct PopBox {
+    pub bg_color: EColor,
+    pub fg_color: EColor,
+    pub buttons: Option<BoxButtons>,
+}
+impl PopBox {
+    pub fn draw<W: Write>(&self, op: &mut W, start: IVec2, text: &str,) -> std::io::Result<()> {
+        // apply theme
+        self.bg_color.write_bg(op)?;
+        self.fg_color.write_fg(op)?;
+
+        if let Some(bb) = &self.buttons {
+            let mut text = text.to_string();
+            text.push('\n');
+            text.push_str(&bb.to_str());
+
+            write_box(op, &text, start)
+        }
+        else {
+            write_box(op, text, start)
+        }
+    }
+    pub fn draw_center<W: Write>(&self, op: &mut W, start: IVec2, text: &str,) -> std::io::Result<()> {
+        // apply theme
+        self.bg_color.write_bg(op)?;
+        self.fg_color.write_fg(op)?;
+
+        if let Some(bb) = &self.buttons {
+            let mut text = text.to_string();
+            text.push('\n');
+            text.push_str(&bb.to_str());
+
+            write_box_center(op, &text, start)
+        }
+        else {
+            write_box_center(op, text, start)
+        }
+    }
+
+    /// Some(result) or none if invalid input
+    pub fn on_input(&self, inp: Key) -> Option<bool> {
+        if let Some(bb) = &self.buttons {
+            bb.on_input(inp)
+        }
+        else {
+            Some(false)
+        }
+    }
+}
+pub struct BoxButtons {
+    pub yes: String,
+    pub no: String,
+    pub default_yes: bool,
+    pub yes_key: char,
+    pub no_key: char,
+
+}
+impl BoxButtons {
+    pub const SPACE_BET_YES_NO: usize = 2;
+
+    fn length(&self) -> usize {
+        // 6 is for `(Y)` and `(n)` and such
+        self.yes.len() + self.no.len() + Self::SPACE_BET_YES_NO + 6
+
+    }
+
+    fn to_str(&self) -> String {
+        let mut s = String::with_capacity(self.length());
+        s.push_str(&self.yes);
+        s.push('(');
+        if self.default_yes {
+            s.push(self.yes_key.to_ascii_uppercase());
+        }
+        else {
+            s.push(self.yes_key.to_ascii_lowercase());
+        }
+        s.push(')');
+        s.push_str(&" ".repeat(Self::SPACE_BET_YES_NO));
+        s.push_str(&self.no);
+        s.push('(');
+        if self.default_yes {
+            s.push(self.no_key.to_ascii_lowercase());
+        }
+        else {
+            s.push(self.no_key.to_ascii_uppercase());
+        }
+        s.push(')');
+
+        s
+    }
+
+    fn on_input(&self, inp: Key) -> Option<bool> {
+        if let Key::Char(c) = inp {
+            if c == '\n' {
+                // enter key, return default
+                Some(self.default_yes)
+            }
+            else if c == self.yes_key {
+                Some(true)
+            }
+            else if c == self.no_key {
+                Some(false)
+            }
+            else {
+                None
+            }
+        }
+        else {
+            None
+        }
+    }
+}
 
 
 const PIPES: [char;6] = [ '╔', '═', '╗', '║', '╚', '╝'];

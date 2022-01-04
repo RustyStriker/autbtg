@@ -1,10 +1,9 @@
 use std::{collections::HashMap, error::Error};
 
-use crate::{entity::{EntityId, Entity}, ivec2::IVec2};
-
+use crate::{entity::*, ivec2::IVec2, ui::EColor};
 
 pub struct Game {
-    pub entities: HashMap<EntityId, Box<dyn Entity>>,
+    pub entities: EntityMap,
     pub world: World,
 }
 impl Game {
@@ -65,11 +64,13 @@ impl World {
     }
 }
 pub struct Chunk {
-    blocks: [[Block;16];16],
+    blocks: [[Block;Chunk::SIZE];Chunk::SIZE],
 }
 impl Chunk {
+    pub const SIZE: usize = 16;
+
     pub fn new(block: Block) -> Self {
-        Self { blocks: [[block; 16]; 16] }
+        Self { blocks: [[block; Chunk::SIZE]; Chunk::SIZE] }
     }
 
     pub fn get(&self, x: usize, y: usize) -> Block {
@@ -104,6 +105,12 @@ impl Block {
         match *self {
             Block::Dirt => 1.0,
             Block::Wall => 0.0,
+        }
+    }
+    pub fn color(&self) -> EColor {
+        match self {
+            Block::Dirt => EColor::Black,
+            Block::Wall => EColor::White,
         }
     }
 }

@@ -2,15 +2,20 @@ use std::io::Write;
 
 use termion::color;
 
-use self::turn_bar::TurnBar;
+mod boxx;
+mod turn_bar;
+mod hud;
+mod health_bars;
 
-pub mod boxx;
-pub mod turn_bar;
+pub use boxx::*;
+pub use turn_bar::*;
+pub use hud::*;
+pub use health_bars::*;
 
 pub struct UITheme {
     pub turn_bar: TurnBar,
 }
-
+#[derive(Clone, Copy)]
 pub enum EColor {
     Black,
     Red,

@@ -1,8 +1,10 @@
 mod spider;
+use std::collections::HashMap;
+
 pub use spider::*;
 
 use crate::ivec2::IVec2;
-
+pub type EntityMap = HashMap<EntityId, Box<dyn Entity>>;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EntityId {
@@ -35,6 +37,7 @@ pub trait Entity {
     fn advance_timer(&mut self, amount: u32);
     // health
     fn health(&self) -> i32;
+    fn max_health(&self) -> i32;
     fn add_health(&mut self, amount: i32);
     // position
     fn position(&self) -> IVec2;
