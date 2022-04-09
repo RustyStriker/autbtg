@@ -21,10 +21,6 @@ impl Spider {
     }
 }
 impl Entity for Spider {
-    fn play(&mut self, _entities: Vec<&mut Box<dyn Entity>>,) {
-        todo!()
-    }
-
     fn timer(&self) -> u32 {
         self.timer
     }
@@ -63,5 +59,9 @@ impl Entity for Spider {
 
     fn faction(&self) -> super::Faction {
         super::Faction::Spiders
+    }
+
+    fn play(&mut self, entities: Vec<&mut Box<dyn Entity>>,) -> bool {
+        todo!()
     }
 }
