@@ -1,18 +1,25 @@
 use std::{collections::HashMap, error::Error};
 
-use crate::{entity::*, ivec2::IVec2, ui::EColor};
+use crate::{entity::*, ivec2::IVec2, ui::EColor, ui::Hud};
 
 pub struct Game {
+    pub hud: Hud,
     pub entities: EntityMap,
     pub world: World,
 }
 impl Game {
     pub fn new() -> Game {
         Game {
+            hud: Hud::default(),
             entities: HashMap::new(),
             world: World { chunks: HashMap::with_capacity(32) },
         }
     }
+    pub fn insert_entity(&mut self, id: Option<EntityId>, entity: Box<dyn Entity>) {
+        self.entities.insert(id.unwrap_or(EntityId::new('A')), entity);
+    }
+
+
     pub fn game_loop(&mut self) -> Result<(), Box<dyn Error>> {
         // Loop over all entities to check who's turn is next
         // play the current turn
@@ -24,8 +31,8 @@ impl Game {
         // repeat
         let next = self.entities.iter()
             .min_by_key(|(_,e)| e.timer())
-            .map(|(id, _)| id);
-        let next = next.expect("Couldn't find the next turn wtf?");
+            .map(|(id, _)| id)
+            .expect("Couldn't find the next turn wtf?");
         let advance_time = self.entities.get(next).unwrap().timer();
         // advance the time
         self.entities.iter_mut()

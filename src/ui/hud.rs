@@ -48,10 +48,25 @@ impl Hud {
         let health_iter = ents.iter()
             .map(|(id, e)| (id.symbol(), e.health(), e.max_health()));
         self.health.draw(op, IVec2::new(start, cy), side_len, health_iter)?;
-        cy += ents.len() as i32 + 1; // yet again space between stuff
+        // cy += ents.len() as i32 + 1; // yet again space between stuff
         
-
-
         Ok(())
+    }
+}
+impl Default for Hud {
+    fn default() -> Self {
+        Self {
+            game_name: "My Game Name".to_string(),
+            bg_color: EColor::Black,
+            fg_color: EColor::Cyan,
+            turns: TurnBar { size: 5, bg_color: EColor::Blue, fg_color: EColor::Red },
+            health: HealthBars {
+                bg: EColor::Black,
+                name: EColor::White,
+                health_low: EColor::Red,
+                health_mid: EColor::Yellow,
+                health_high: EColor::Green,
+            },
+        }
     }
 }

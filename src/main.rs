@@ -1,6 +1,6 @@
 use std::io::{self, Write};
-
-use autbgtg::*;
+use std::thread;
+use autbtg::*;
 
 use ivec2::IVec2;
 use ui::EColor;
@@ -15,7 +15,7 @@ fn main() {
     let v = IVec2::new(10,21);
     println!("{}",v);
 
-    let stdin = io::stdin();
+    let stdin = termion::async_stdin();
     let stdout = io::stdout();
     let mut stdout = MouseTerminal::from(stdout).into_raw_mode().unwrap();
     
@@ -32,22 +32,20 @@ fn main() {
             }
         });
     });
-    render::render_chunk(&mut stdout, &chunk, IVec2::new(1,1)).unwrap();
-
-    let popbox = ui::PopBox {
+    
+    let mut popbox = ui::PopBox {
         bg_color: EColor::Black,
         fg_color: EColor::White,
         buttons: Some(ui::BoxButtons {
             yes: "yes".to_string(),
             no: "no".to_string(),
-            default_yes: true,
+            yes_selected: true,
             yes_key: 'y',
             no_key: 'n',
         }),
     };
-    popbox.draw_center(&mut stdout, IVec2::new(20,10), "Would you like to dig a pony?").unwrap();
 
-    let tb = autbgtg::ui::TurnBar {
+    let tb = ui::TurnBar {
         size: 20,
         bg_color: EColor::Black,
         fg_color: EColor::Cyan,
@@ -72,22 +70,38 @@ fn main() {
         Box::new(entity::Spider::new(IVec2::ZERO))
     );
     ents.get_mut(&entity::EntityId::new('@')).unwrap().add_health(-2);
+    
+    let mut add = false;
 
-    for e in stdin.events() {
-        hud.draw(&mut stdout, &ents).unwrap();
-        stdout.flush().unwrap();
-        if let Ok(e) = e {
-            if let Event::Key(Key::Esc) = e {
-                break;
-            }
-            else if let Event::Key(k) = e {
-                if popbox.on_input(k).unwrap_or(false) {
+    // Actual loop test with "rEaL tImE rEnDeRiNg"
+    let mut events = stdin.events();
+    loop {
+        write!(stdout, "{}", clear::All).unwrap();
+        if let Some(e) = events.next() {
+            if let Ok(e) = e {
+                if let Event::Key(Key::Esc) = e {
                     break;
+                }
+                else if let Event::Key(k) = e {
+                    if popbox.on_input(k).unwrap_or(false) {
+                        break;
+                    }
                 }
             }
         }
+        let add_am = if add { 1 } else { -1 };
+        add = !add;
+        ents.get_mut(&entity::EntityId::new('@')).unwrap().add_health(add_am);
+        render::render_chunk(&mut stdout, &chunk, IVec2::new(1,1)).unwrap();
+        hud.draw(&mut stdout, &ents).unwrap();
+        popbox.draw_center(&mut stdout, IVec2::new(16,16), "Would you like to quitt?").unwrap();
+        stdout.flush().unwrap();
+        thread::sleep(std::time::Duration::from_millis(25));
     }
-    
 
-    println!("{}Goodbye :)", cursor::Goto(1, terminal_size().map(|(_,y)| y - 4).unwrap_or(1)));
+    println!("{}{}{}Goodbye :)", 
+        cursor::Goto(1, terminal_size().map(|(_,y)| y - 4).unwrap_or(1)),
+        color::Bg(color::Black),
+        color::Fg(color::White)
+    );
 }

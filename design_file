@@ -20,3 +20,15 @@
                                                                                                         |    and armor
                                                                                                         |    ?
 
+
+Game loop:
+    - Check if in turn
+        + Get next turn
+    - Play turn by stages:
+        - Look "action"
+        - run Look through modifiers(visibility modifiers and such)
+        - Get Relevant world data(what is visible)
+        - Input(get action)
+        - Run action through modifiers
+        - Act on action
+    - Render/Feedback to player

@@ -32,7 +32,8 @@ impl EntityId {
 /// - maybe more?
 pub trait Entity {
     // turns
-    fn play(&mut self, entities: Vec<&mut Box<dyn Entity>>,);
+    /// Plays a turn(or attempts to), and returns if it finished its turn
+    fn play(&mut self, entities: Vec<&mut Box<dyn Entity>>,) -> bool;
     fn timer(&self) -> u32;
     fn advance_timer(&mut self, amount: u32);
     // health

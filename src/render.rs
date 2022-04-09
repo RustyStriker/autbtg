@@ -7,16 +7,26 @@ use termion::*;
 
 const MIN_TERMINAL_SIZE: (u16,u16) = (92,22);
 
-pub fn render<W: Write>(op: &mut W, _game: &Game, pos: IVec2) {
-    let (termx, termy) = terminal_size().unwrap();
+pub fn render<W: Write>(op: &mut W, game: &Game, pos: IVec2) -> std::io::Result<()> {
+    let (termx, termy) = terminal_size()?;
 
     if termx < MIN_TERMINAL_SIZE.0 || termy < MIN_TERMINAL_SIZE.1 {
-        write!(op, "{}", termion::clear::All).unwrap();
+        write!(op, "{}", termion::clear::All)?;
         write_box(op, 
             &format!("{}x{} is too small of a terminal", termx,termy), 
             IVec2::new(5,5)
-        ).unwrap();
+        )?;
     }
+    else {
+        // Draw the world
+        for (start, chunk) in game.world.chunks.iter() {
+            render_chunk(op, chunk, *start + pos)?;
+        }
+        // Draw the hud
+        game.hud.draw(op, &game.entities)?;
+    }
+
+    Ok(())
 }
 
 pub fn render_chunk<W: Write>(op: &mut W, chunk: &Chunk, start: IVec2) -> std::io::Result<()> {

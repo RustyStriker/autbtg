@@ -20,7 +20,7 @@ impl PopBox {
         if let Some(bb) = &self.buttons {
             let mut text = text.to_string();
             text.push('\n');
-            text.push_str(&bb.to_str());
+            text.push_str(&bb.to_str(self.bg_color, self.fg_color));
 
             write_box(op, &text, start)
         }
@@ -36,7 +36,7 @@ impl PopBox {
         if let Some(bb) = &self.buttons {
             let mut text = text.to_string();
             text.push('\n');
-            text.push_str(&bb.to_str());
+            text.push_str(&bb.to_str(self.bg_color, self.fg_color));
 
             write_box_center(op, &text, start)
         }
@@ -46,8 +46,8 @@ impl PopBox {
     }
 
     /// Some(result) or none if invalid input
-    pub fn on_input(&self, inp: Key) -> Option<bool> {
-        if let Some(bb) = &self.buttons {
+    pub fn on_input(&mut self, inp: Key) -> Option<bool> {
+        if let Some(bb) = &mut self.buttons {
             bb.on_input(inp)
         }
         else {
@@ -58,10 +58,9 @@ impl PopBox {
 pub struct BoxButtons {
     pub yes: String,
     pub no: String,
-    pub default_yes: bool,
     pub yes_key: char,
     pub no_key: char,
-
+    pub yes_selected: bool,
 }
 impl BoxButtons {
     pub const SPACE_BET_YES_NO: usize = 2;
@@ -72,36 +71,34 @@ impl BoxButtons {
 
     }
 
-    fn to_str(&self) -> String {
+    fn to_str(&self, bg: EColor, fg: EColor) -> String {
         let mut s = String::with_capacity(self.length());
+        if self.yes_selected {
+            s.push_str(&format!("{}{}", fg.bg(), bg.fg()));
+        }
         s.push_str(&self.yes);
         s.push('(');
-        if self.default_yes {
-            s.push(self.yes_key.to_ascii_uppercase());
-        }
-        else {
-            s.push(self.yes_key.to_ascii_lowercase());
-        }
+        s.push(self.yes_key);
         s.push(')');
+        s.push_str(&format!("{}{}", bg.bg(), fg.fg()));
         s.push_str(&" ".repeat(Self::SPACE_BET_YES_NO));
+        if !self.yes_selected {
+            s.push_str(&format!("{}{}", fg.bg(),bg.fg()));
+        }
         s.push_str(&self.no);
         s.push('(');
-        if self.default_yes {
-            s.push(self.no_key.to_ascii_lowercase());
-        }
-        else {
-            s.push(self.no_key.to_ascii_uppercase());
-        }
+        s.push(self.no_key);
         s.push(')');
+        s.push_str(&format!("{}{}", fg.fg(),bg.bg()));
 
         s
     }
 
-    fn on_input(&self, inp: Key) -> Option<bool> {
+    fn on_input(&mut self, inp: Key) -> Option<bool> {
         if let Key::Char(c) = inp {
             if c == '\n' {
                 // enter key, return default
-                Some(self.default_yes)
+                Some(self.yes_selected)
             }
             else if c == self.yes_key {
                 Some(true)
@@ -114,6 +111,9 @@ impl BoxButtons {
             }
         }
         else {
+            if inp == Key::Left || inp == Key::Right {
+                self.yes_selected = inp == Key::Left;
+            }
             None
         }
     }
@@ -121,6 +121,7 @@ impl BoxButtons {
 
 
 const PIPES: [char;6] = [ '╔', '═', '╗', '║', '╚', '╝'];
+#[derive(Clone, Copy)]
 enum Pipes {
     TopLeft,
     Horizontal,
@@ -141,6 +142,11 @@ impl Pipes {
         }
     }
 }
+impl std::fmt::Display for Pipes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get())
+    }
+}
 
 pub fn draw_box<W: Write>(op: &mut W, start: IVec2, end: IVec2) -> std::io::Result<()> {
     let size = end - start;
@@ -149,26 +155,26 @@ pub fn draw_box<W: Write>(op: &mut W, start: IVec2, end: IVec2) -> std::io::Resu
     if start.y() >= 1 {
         write!(op, "{}{}{}{}", 
             cursor::Goto(start.x() as u16, start.y() as u16),
-            Pipes::TopLeft.get(),
-            Pipes::Horizontal.get().to_string().repeat(size.x() as usize - 2),
-            Pipes::TopRight.get()
+            Pipes::TopLeft,
+            Pipes::Horizontal.to_string().repeat(size.x() as usize - 2),
+            Pipes::TopRight
         )?;
     }
     // middle parts
     for i in 1..size.y() as u16 {
         write!(op, "{}{}{}{}", 
             cursor::Goto(start.x() as u16, start.y() as u16 + i),
-            Pipes::Vertical.get(),
+            Pipes::Vertical,
             " ".repeat(size.x() as usize - 2),
-            Pipes::Vertical.get()
+            Pipes::Vertical
         )?;
     }
     if start.y() + size.y() <= terminal_size().map(|(_, y)| y).unwrap_or(0) as i32 {
         write!(op, "{}{}{}{}", 
             cursor::Goto(start.x() as u16, start.y() as u16 + size.y() as u16),
-            Pipes::BottomLeft.get(),
-            Pipes::Horizontal.get().to_string().repeat(size.x() as usize - 2),
-            Pipes::BottomRight.get()
+            Pipes::BottomLeft,
+            Pipes::Horizontal.to_string().repeat(size.x() as usize - 2),
+            Pipes::BottomRight
         )?;
     }
     op.flush()?;
@@ -179,7 +185,10 @@ pub fn draw_box<W: Write>(op: &mut W, start: IVec2, end: IVec2) -> std::io::Resu
 pub fn write_box<W: Write>(op: &mut W, message: &str, start: IVec2) -> std::io::Result<()> {
     // first break the string by new lines
     let lines = message.lines();
-    let len = lines.clone().max_by_key(|l| l.len()).map(|l| l.len()).unwrap_or(0);
+    let len =lines.clone()
+        .map::<usize, _>(|l| strlen_without_esc(l))
+        .max()
+        .unwrap_or(0);
     let height = lines.clone().count();
 
     // draw the box
@@ -199,14 +208,17 @@ pub fn write_box<W: Write>(op: &mut W, message: &str, start: IVec2) -> std::io::
 /// Writes a text box on the screen with the text centered in the box
 pub fn write_box_center<W: Write>(op: &mut W, message: &str, start: IVec2) -> std::io::Result<()> {
     let lines = message.lines();
-    let len = lines.clone().max_by_key(|l| l.len()).map(|l| l.len()).unwrap_or(0);
+    let len = lines.clone()
+        .map::<usize, _>(|l| strlen_without_esc(l))
+        .max()
+        .unwrap_or(0);
     let height = lines.clone().count();
 
     let end = start + IVec2::new(len as i32 + 4, height as i32 + 1);
     draw_box(op, start, end)?;
 
     for (i,l) in lines.enumerate() {
-        let spaces = (len - l.len()) / 2;
+        let spaces = (len - strlen_without_esc(l)) / 2;
         write!(op, "{} {}{}{} ", 
             cursor::Goto(start.x() as u16 + 1, start.y() as u16 + i as u16 + 1),
             " ".repeat(spaces),
@@ -216,4 +228,8 @@ pub fn write_box_center<W: Write>(op: &mut W, message: &str, start: IVec2) -> st
     }
     op.flush()?;
     Ok(())
+}
+
+fn strlen_without_esc(str: &str) -> usize {
+    str.len() - str.split("\x1b").map(|x| x.find('m').unwrap_or(0) + 2).sum::<usize>() + 2
 }

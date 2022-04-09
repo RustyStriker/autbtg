@@ -24,6 +24,13 @@ impl IVec2 {
     pub fn to_cursor(self) -> termion::cursor::Goto {
         termion::cursor::Goto(self.x as u16, self.y as u16)
     }
+    #[must_use]
+    pub fn min(self, other: IVec2) -> IVec2 {
+        IVec2 { 
+            x: self.x.min(other.x), 
+            y: self.y.min(other.y)
+        }
+    }
 }
 impl Add for IVec2 {
     type Output = IVec2;
